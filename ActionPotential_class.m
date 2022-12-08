@@ -586,7 +586,143 @@ classdef ActionPotential_class <handle
                     aaga = gcf;
                     aaga.Position = [1          41        1920         963];
                 end
-%                 zdy = zappedDataY;
+
+                uur = reshape(uu',1,198000);
+                shiftV = mean(uur);
+                uur = uur-shiftV;
+                uu = reshape(uur,1000,198)';
+                mm = movmax(uur,9000)*.65;
+                mmr = reshape(mm,1000,198)';
+                sz = size(uu);
+                if fAP(1)>0.1
+                    fAP = fAP-fAP(1);
+                end
+                mAP = max(fAP);
+                skipNext = 0;
+                for ii = 1:sz(1)
+                    if ~skipNext
+                        if any(uu(ii,:)>mmr(ii,:))
+                            ids2u = find(uu(ii,:)>mmr(ii,:));
+                            [mVal,mLoc]=max(uu(ii,ids2u));
+                            if mVal>mAP*.6
+                                if ids2u(mLoc)>950
+                                    if ii+1<sz(1)
+                                        un = uu(ii+1,1:150);
+                                        un2 = [uu(ii,:) un];
+                                        [mVal,mLoc]=max(un2(950:end));
+                                        mLoc = mLoc+950-1;
+                                        if mLoc <= 1000
+                                            APLoc(ii,mLoc) = 1;
+                                            APCount = APCount + 1;
+                                            skipNext = 1;
+                                        end
+                                    end
+                                elseif ids2u(mLoc)<50
+                                    if length(ids2u) >10
+                                        id = ids2u(mLoc);
+                                        APLoc(ii,id) = 1;
+                                        APCount = APCount + 1;
+                                    end
+                                else
+                                    id = ids2u(mLoc);
+                                    if mVal < 0.1
+                                        y=lowpass(uu(ii,:),200,200000);
+                                        if y(id)>mAP*.6
+                                            APLoc(ii,id) = 1;
+                                            APCount = APCount + 1;
+                                        end
+                                    else
+                                        APLoc(ii,id) = 1;
+                                        APCount = APCount + 1;
+                                    end
+                                end
+                                
+                            end
+                        end
+                    else
+                        skipNext = 0;
+                    end
+                end
+
+                if debugFlg
+                    figure
+                    ALLSTIMPlot = reshape(D.StimBlocks(idxs).([chan,'_ALLSTIM'])',1,198000);
+                    ZO = reshape(D.StimBlocks(idxs).([chan,'_ZAPPED'])',1,198000);
+                    apl = reshape(D.StimBlocks(idxs).([chan,'_APLoc'])',1,198000);
+                    plot(ALLSTIMPlot)
+                    hold on
+                    plot(ZO)
+                    plot(find(apl),ZO(find(apl)),'g*')
+                    abc = gcf;
+                    abc.Position = [1          41        1920         963];
+                    hold off
+                    name = ['Stim ',num2str(D.StimBlocks(idxs).Stim_E),' Ref ',num2str(D.StimBlocks(idxs).Ref_E),' Current ',num2str(D.StimBlocks(idxs).Current_uA),' Block Number ',num2str(idxs)];
+                    title(name);
+                    uiwait
+                    
+                end
+                if isempty(app)
+                    D.StimBlocks(idxs).([chan,'_APLoc']) = APLoc;
+                    D.StimBlocks(idxs).([chan,'_APCount']) = APCount;
+                    obj.DAT = D;
+                else
+                    app.tempAPLoc = APLoc;
+                    app.tempAPCount = APCount;
+                    app.CurrID = idxs;
+                    app.CurrChannel = chan;
+                    ALLSTIMPlot = reshape(D.StimBlocks(idxs).([chan,'_ALLSTIM'])',1,198000);
+                    ZO = reshape(D.StimBlocks(idxs).([chan,'_ZAPPED'])',1,198000);
+                    apl = reshape(app.tempAPLoc',1,198000);
+%                     aa = axes(app.AnalysisPlotsTab);
+                    plot(aa,ALLSTIMPlot)
+                    hold(aa,'on')
+                    plot(aa,ZO)
+                    plot(aa,find(apl),ZO(find(apl)),'g*')
+                    hold(aa,'off')
+                    aa.XLim = [0 200000];
+                    aa.YLim = [mean(ZO(find(apl)))*-.8 mean(ZO(find(apl)))*1.3];
+                    aa.Title.String = [num2str(APCount),' Total APs'];
+%                     name = ['Stim ',num2str(D.StimBlocks(idxs).Stim_E),' Ref ',num2str(D.StimBlocks(idxs).Ref_E),' Current ',num2str(D.StimBlocks(idxs).Current_uA),' Block Number ',num2str(idxs)];
+%                     aa.Title.String(name);
+                    app.figure1.WindowButtonDownFcn = @(src,event)app.APPosCheck;
+                    app.figure1.WindowKeyPressFcn = @(src,event)app.KeyDownFcn;
+                    switch app.PlotRawDataSwitch.Value
+                        case 'On'
+                            aa.Children(3).Visible = 'on';
+                        case 'Off'
+                            aa.Children(3).Visible = 'off';
+                    end
+                    uiwait
+                    if app.stopButton.Value
+                        break
+                    end
+                    app.KeyPressed = 0;
+                    D.StimBlocks(idxs).([chan,'_APLoc']) = app.tempAPLoc;
+                    D.StimBlocks(idxs).([chan,'_APCount']) = app.tempAPCount;
+                    obj.DAT = D;
+                    app.figure1.WindowButtonDownFcn = [];
+                    app.figure1.WindowKeyPressFcn = [];
+                    p = find(idxs==idxss)/length(idxss);
+                    app.PBarObj.Position(3) = p*1000;
+                    app.PBarTxt.String = [num2str(round(p*100)),'%'];
+                    cla(app.FigPlot)
+                    drawnow
+                end
+                
+            end
+            if isempty(app)
+                
+            else
+                app.figure1.WindowButtonDownFcn = [];
+                cla(app.FigPlot)
+                app.ProgressBar.Title.String = 'Finished';
+                app.PBarObj.Position(3) = 1*1000;
+                app.PBarTxt.String = ['Waiting'];
+                drawnow
+            end
+            
+        end
+        %                 zdy = zappedDataY;
 %                 
 %                 isVs = [];
 %                 istVs = [];
@@ -1288,133 +1424,6 @@ classdef ActionPotential_class <handle
 %                 mean(ds);
 %                 max(ds);
 
-                uur = reshape(uu',1,198000);
-                shiftV = mean(uur);
-                uur = uur-shiftV;
-                uu = reshape(uur,1000,198)';
-                mm = movmax(uur,9000)*.65;
-                mmr = reshape(mm,1000,198)';
-                sz = size(uu);
-                if fAP(1)>0.1
-                    fAP = fAP-fAP(1);
-                end
-                mAP = max(fAP);
-                skipNext = 0;
-                for ii = 1:sz(1)
-                    if ~skipNext
-                        if any(uu(ii,:)>mmr(ii,:))
-                            ids2u = find(uu(ii,:)>mmr(ii,:));
-                            [mVal,mLoc]=max(uu(ii,ids2u));
-                            if mVal>mAP*.6
-                                if ids2u(mLoc)>950
-                                    if ii+1<sz(1)
-                                        un = uu(ii+1,1:150);
-                                        un2 = [uu(ii,:) un];
-                                        [mVal,mLoc]=max(un2(950:end));
-                                        mLoc = mLoc+950-1;
-                                        if mLoc <= 1000
-                                            APLoc(ii,mLoc) = 1;
-                                            APCount = APCount + 1;
-                                            skipNext = 1;
-                                        end
-                                    end
-                                elseif ids2u(mLoc)<50
-                                    if length(ids2u) >10
-                                        id = ids2u(mLoc);
-                                        APLoc(ii,id) = 1;
-                                        APCount = APCount + 1;
-                                    end
-                                else
-                                    id = ids2u(mLoc);
-                                    if mVal < 0.1
-                                        y=lowpass(uu(ii,:),200,200000);
-                                        if y(id)>mAP*.6
-                                            APLoc(ii,id) = 1;
-                                            APCount = APCount + 1;
-                                        end
-                                    else
-                                        APLoc(ii,id) = 1;
-                                        APCount = APCount + 1;
-                                    end
-                                end
-                                
-                            end
-                        end
-                    else
-                        skipNext = 0;
-                    end
-                end
-
-                if debugFlg
-                    figure
-                    ALLSTIMPlot = reshape(D.StimBlocks(idxs).([chan,'_ALLSTIM'])',1,198000);
-                    ZO = reshape(D.StimBlocks(idxs).([chan,'_ZAPPED'])',1,198000);
-                    apl = reshape(D.StimBlocks(idxs).([chan,'_APLoc'])',1,198000);
-                    plot(ALLSTIMPlot)
-                    hold on
-                    plot(ZO)
-                    plot(find(apl),ZO(find(apl)),'g*')
-                    abc = gcf;
-                    abc.Position = [1          41        1920         963];
-                    hold off
-                    name = ['Stim ',num2str(D.StimBlocks(idxs).Stim_E),' Ref ',num2str(D.StimBlocks(idxs).Ref_E),' Current ',num2str(D.StimBlocks(idxs).Current_uA),' Block Number ',num2str(idxs)];
-                    title(name);
-                    uiwait
-                    
-                end
-                if isempty(app)
-                    D.StimBlocks(idxs).([chan,'_APLoc']) = APLoc;
-                    D.StimBlocks(idxs).([chan,'_APCount']) = APCount;
-                    obj.DAT = D;
-                else
-                    app.tempAPLoc = APLoc;
-                    app.tempAPCount = APCount;
-                    app.CurrID = idxs;
-                    app.CurrChannel = chan;
-                    ALLSTIMPlot = reshape(D.StimBlocks(idxs).([chan,'_ALLSTIM'])',1,198000);
-                    ZO = reshape(D.StimBlocks(idxs).([chan,'_ZAPPED'])',1,198000);
-                    apl = reshape(app.tempAPLoc',1,198000);
-%                     aa = axes(app.AnalysisPlotsTab);
-                    plot(aa,ALLSTIMPlot)
-                    hold(aa,'on')
-                    plot(aa,ZO)
-                    plot(aa,find(apl),ZO(find(apl)),'g*')
-                    hold(aa,'off')
-                    aa.XLim = [0 200000];
-                    aa.YLim = [-.4 0.4];
-                    aa.Title.String = [num2str(APCount),' Total APs'];
-%                     name = ['Stim ',num2str(D.StimBlocks(idxs).Stim_E),' Ref ',num2str(D.StimBlocks(idxs).Ref_E),' Current ',num2str(D.StimBlocks(idxs).Current_uA),' Block Number ',num2str(idxs)];
-%                     aa.Title.String(name);
-                    app.figure1.WindowButtonDownFcn = @(src,event)app.APPosCheck;
-                    uiwait
-                    if app.stopButton.Value
-                        break
-                    end
-                    D.StimBlocks(idxs).([chan,'_APLoc']) = app.tempAPLoc;
-                    D.StimBlocks(idxs).([chan,'_APCount']) = app.tempAPCount;
-                    obj.DAT = D;
-                    app.figure1.WindowButtonDownFcn = [];
-                    p = find(idxs==idxss)/length(idxss);
-                    app.PBarObj.Position(3) = p*1000;
-                    app.PBarTxt.String = [num2str(round(p*100)),'%'];
-                    cla(app.FigPlot)
-                    drawnow
-                end
-                
-            end
-            if isempty(app)
-                
-            else
-                app.figure1.WindowButtonDownFcn = [];
-                cla(app.FigPlot)
-                app.ProgressBar.Title.String = 'Finished';
-                app.PBarObj.Position(3) = 1*1000;
-                app.PBarTxt.String = ['Waiting'];
-                drawnow
-            end
-            
-        end
-        
         function [i1, i2, iPk, d] = findAPs_Brian(obj, zappedDataX, zappedDataY, apTemplate, unzappedY, debugPlotFlag)
             go = 1;
             SMOOc = zappedDataY;
