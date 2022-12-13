@@ -41,16 +41,18 @@ if (strcmp(machine,'win32'))
 else
     Type = 64;
 end
-
+currDirectory = cd;
 % is the library loaded?
 if ~libisloaded('ceds64int') % if not...
     if (Type == 32) %...find the 32-bit .dll and...
         libpath = strcat(sPath, '\x86');
         addpath(libpath);
+        cd(libpath);
         loadlibrary ('ceds64int.dll', @ceds32Prot); %...load it
     else
         libpath = strcat(sPath, '\x64');
         addpath(libpath);
+        cd(libpath);
         loadlibrary ('ceds64int', @ceds64Prot); %...load it
     end
 else % if so...
@@ -60,12 +62,15 @@ else % if so...
     if (Type == 32) %...find the 32-bit .dll and...
         libpath = strcat(sPath, '\x86');
         addpath(libpath);
+        cd(libpath);
         loadlibrary ('ceds64int.dll', @ceds32Prot); %...load it
     else
         libpath = strcat(sPath, '\x64');
         addpath(libpath);
+        cd(libpath);
         loadlibrary ('ceds64int', @ceds64Prot); %...load it
     end
 end
+cd(currDirectory);
 end
 
