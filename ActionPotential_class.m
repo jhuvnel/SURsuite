@@ -598,6 +598,9 @@ classdef ActionPotential_class <handle
                     fAP = fAP-fAP(1);
                 end
                 mAP = max(fAP);
+                if mAP > mean(movmax(uur,9000))*1.5
+                    mAP = mAP*.7;
+                end
                 skipNext = 0;
                 for ii = 1:sz(1)
                     if ~skipNext
@@ -679,7 +682,7 @@ classdef ActionPotential_class <handle
                     plot(aa,ZO)
                     plot(aa,find(apl),ZO(find(apl)),'g*')
                     hold(aa,'off')
-                    aa.XLim = [0 200000];
+                    aa.XLim = [-5000 50000]; %200000
                     aa.YLim = [mean(ZO(find(apl)))*-.8 mean(ZO(find(apl)))*1.3];
                     aa.Title.String = [num2str(APCount),' Total APs'];
 %                     name = ['Stim ',num2str(D.StimBlocks(idxs).Stim_E),' Ref ',num2str(D.StimBlocks(idxs).Ref_E),' Current ',num2str(D.StimBlocks(idxs).Current_uA),' Block Number ',num2str(idxs)];
