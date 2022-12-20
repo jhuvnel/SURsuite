@@ -109,6 +109,7 @@ classdef LoadSMR_class < handle
                 if mean(pospks) < mean(negpks)
                     CHAN.Data = -CHAN.Data;
                 end
+
             end
             if isempty(CHAN); continue; end
             CHANS{end+1} = CHAN;
