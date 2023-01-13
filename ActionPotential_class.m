@@ -598,6 +598,9 @@ classdef ActionPotential_class <handle
                     fAP = fAP-fAP(1);
                 end
                 mAP = max(fAP);
+                if mAP/mean(movmax(uur,9000))> 3.5
+                    mAP = mean(movmax(uur,9000));
+                end
                 if mAP > mean(movmax(uur,9000))*1.5
                     mAP = mAP*.7;
                 end

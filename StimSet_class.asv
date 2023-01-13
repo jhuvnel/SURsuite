@@ -136,6 +136,7 @@ classdef StimSet_class < handle
                             SEL = SEL & ismember([SS.StimBlocks(1:k).Stim_E], s);
                             SEL = SEL & ismember([SS.StimBlocks(1:k).Ref_E], r);
                             SEL = SEL & ismember([SS.StimBlocks(1:k).Current_uA], c);
+                            SEL = SEL & ismember([SS.StimBlocks(1:k).ToUse], ToU);
                             idxsT = find(SEL);
                             if length(idxsT)>1
                                 if length([SS.StimBlocks(idxsT).ToUse]) < length(idxsT)
