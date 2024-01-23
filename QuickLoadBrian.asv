@@ -48,20 +48,20 @@ if isempty(handles)
 delete(f)
 end
 
-SS = StimSet_class.NewStimSetObject(DAT);
-
-% Parse the individual stimulation pulses into "blocks", based on the time
-% between pulses. Any gap >10mSec will mark the end of a block.
-SS.StimBlocks = StimSet_class.ParseStimBlocks(SS, 'MinNStim', 20, handles);
-% Match up the stimulation Text Marks with the Blocks that we just parsed.
-% We add the Stim_E, Ref_E, and Current_uA to the columns of information in
-% the SS.StimBlocks array.
-SS.MatchStimBlocks(handles);
+% SS = StimSet_class.NewStimSetObject(DAT);
+% 
+% % Parse the individual stimulation pulses into "blocks", based on the time
+% % between pulses. Any gap >10mSec will mark the end of a block.
+% SS.StimBlocks = StimSet_class.ParseStimBlocks(SS, 'MinNStim', 20, handles);
+% % Match up the stimulation Text Marks with the Blocks that we just parsed.
+% % We add the Stim_E, Ref_E, and Current_uA to the columns of information in
+% % the SS.StimBlocks array.
+% SS.MatchStimBlocks(handles);
 
 % Now copy the newly parsed "StimBlocks" back into the DAT structure, so we
 % can ignore SS afterwards and just deal with the DAT object.
 DAT.addprop('StimBlocks');
-DAT.StimBlocks = [];%SS.StimBlocks;
+DAT.StimBlocks = []SS.StimBlocks;
 clear SS
 
 if isempty(handles)

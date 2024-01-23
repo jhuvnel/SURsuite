@@ -642,11 +642,16 @@ classdef Template_class <handle
                         else
                             while (davg > limm) || (mvmm <= mAP)
                                 subtpt = subtpt +1;
-                                davg = mean(diff(artTemp(pt2Start - (subtpt+2):pt2Start - (subtpt-2))));
-                                bbd = [pt2Start-subtpt:pt2Start+apLength-subtpt];
-                                [curve, goodness, output] = fit(time',artTempT,'smoothingspline','Exclude',bbd); %Fitting a spline to the smoothed and blanked artifact template
-                                yTemplate = curve(time(bbd))';
-                                mvmm = max(artTempT(bbd)'-yTemplate);
+                                if (pt2Start - (subtpt+2))== 0
+                                    break
+                                else
+                                    davg = mean(diff(artTemp(pt2Start - (subtpt+2):pt2Start - (subtpt-2))));
+                                    bbd = [pt2Start-subtpt:pt2Start+apLength-subtpt];
+                                    [curve, goodness, output] = fit(time',artTempT,'smoothingspline','Exclude',bbd); %Fitting a spline to the smoothed and blanked artifact template
+                                    yTemplate = curve(time(bbd))';
+                                    mvmm = max(artTempT(bbd)'-yTemplate);
+                                end
+                                
                             end
                         end
                         
@@ -957,7 +962,8 @@ classdef Template_class <handle
         function [APTEMPLATE_unzeroed,APTEMPLATE] = GetAPTemplate(obj, APC, Block_idx, chan)
             DAT = obj.DAT; % For convenience, copy over.
             [DPRE,DSTIM,StimIdx] = DAT.GetBlockData(Block_idx, chan);
-            [APTEMPLATE_unzeroed,APTEMPLATE] = APC.FindAPs(DPRE);
+            % [APTEMPLATE_unzeroed,APTEMPLATE] = APC.FindAPs(DPRE);
+            [APTEMPLATE_unzeroed,APTEMPLATE] = APC.SimpleFindAPs(DPRE);
         end
 
     end

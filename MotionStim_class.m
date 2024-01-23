@@ -585,6 +585,10 @@ classdef MotionStim_class <handle
                                 toRM = [toRM IDS(ii)+1];
                             end
                         end
+                        if any(isinf(t))
+                            toRM = [toRM find(isinf(t))];
+                            toRM = unique(toRM);
+                        end
                         APT.AP(toRM) = [];
                     end
                     StimStruct.(fq).APLocs = [StimStruct.(fq).APLocs; {APT.AP'}];

@@ -577,10 +577,16 @@ classdef MotionStim_class <handle
                     t = 1./diff(apT(APT.AP));
                     if any(isoutlier(t,'percentiles',[0 99]))
                         IDS = find(isoutlier(t,'percentiles',[0 99]));
+                        toRM = [];
                         for ii = 1:length(IDS)
-                            if APT.SMOO(APT.AP(IDS(ii)))<mean(APT.SMOO(APT.AP))*(2/3)
+                            if APT.SMOO(APT.AP(IDS(ii)))<mean(APT.SMOO(APT.AP))*(3/4)
+                                toRM = [toRM IDS(ii)];
+                            elseif APT.SMOO(APT.AP(IDS(ii)+1))<mean(APT.SMOO(APT.AP))*(3/4)
+                                toRM = [toRM IDS(ii)+1];
                             end
                         end
+                        if 
+                        APT.AP(toRM) = [];
                     end
                     StimStruct.(fq).APLocs = [StimStruct.(fq).APLocs; {APT.AP'}];
                     StimStruct.(fq).APSIsR = [StimStruct.(fq).APSIsR; {1./diff(apT(APT.AP))}];

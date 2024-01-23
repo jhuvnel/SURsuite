@@ -30,7 +30,7 @@ classdef SpikeDATA_class <dynamicprops
     methods
         function rmprop(obj, prop)
             if isprop(obj,prop)
-                delete(obj.findprop(prop))
+            delete(obj.findprop(prop))
             end
         end
 

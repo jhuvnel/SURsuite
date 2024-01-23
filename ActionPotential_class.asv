@@ -82,6 +82,152 @@ classdef ActionPotential_class <handle
         % threshold is computed automatically.
         %
         % Return a struct with the various internal computed values.
+        function [APT_unzeroed, APT] = SimpleFindAPs(obj, DAT, THRESH)
+            % Subtract out baseline offset.
+            if isrow(DAT)
+                DAT = DAT';
+            end
+            DAT_unzeroed = DAT;
+            DAT = DAT - mean(DAT);
+
+            % SMOOTH the raw head-stage data first...
+            SMOO_unzeroed = smooth(DAT_unzeroed,21,'sgolay');
+            SMOO = smooth(DAT,21,'sgolay');
+
+            MM_unzeroed = movmax(DAT, 10000);
+            THRESH_unzeroed = 0.57*MM_unzeroed;
+
+            MM = movmax(DAT, 10000);
+            THRESH = 0.57*MM;
+
+            % "Threshold" based on moving maximum.
+            HIT_unzeroed = DAT_unzeroed > THRESH_unzeroed;
+            HIT_idx_unzeroed = find(HIT_unzeroed);
+
+            HIT = DAT > THRESH;
+            HIT_idx = find(HIT);
+
+            % Find the "clumps" of data points that are above the
+            % threshold. Each Clump may be an action potential.
+            CLUMP_idx_unzeroed = [diff(HIT_idx_unzeroed); max(HIT_idx_unzeroed)*10] > 100;
+            CLUMP_unzeroed = HIT_idx_unzeroed(CLUMP_idx_unzeroed);
+
+            CLUMP_idx = [diff(HIT_idx); max(HIT_idx)*10] > 100;
+            CLUMP = HIT_idx(CLUMP_idx);
+
+            % Loop through the clumps, and save an index for the Action
+            % Potential, that is at the max() value of the smoothed data
+            % (i.e., the "peak" of the Action Potential).
+            AP_unzeroed = zeros(length(CLUMP_unzeroed), 1);
+            AP = zeros(length(CLUMP), 1);
+
+            for i=1:length(CLUMP)
+                if i == 1
+                    bd = HIT_idx(find(HIT_idx<=CLUMP(i)));
+                else
+                    bd = HIT_idx(find(HIT_idx>CLUMP(i-1) & HIT_idx<=CLUMP(i)));
+                end
+                if bd(end) > length(DAT)
+                    bd = 1+CLUMP(i):length(DAT);
+                end
+                vals = DAT(bd);
+                apidx = find(vals == max(vals));
+                apidx = apidx(1);
+                AP(i) = bd(apidx);
+            end
+
+            for i=1:length(CLUMP_unzeroed)
+                if i == 1
+                    bd = HIT_idx_unzeroed(find(HIT_idx_unzeroed<=CLUMP_unzeroed(i)));
+                else
+                    bd = HIT_idx_unzeroed(find(HIT_idx_unzeroed>CLUMP_unzeroed(i-1) & HIT_idx_unzeroed<=CLUMP_unzeroed(i)));
+                end
+                vals_unzeroed = DAT_unzeroed(bd);
+                apidx_unzeroed = find(vals_unzeroed == max(vals_unzeroed));
+                apidx_unzeroed = apidx_unzeroed(1);
+                AP_unzeroed(i) = bd(apidx_unzeroed);
+            end
+
+            % % Get rid of any low-amplitude outliers, whose peak is well
+            % % below the mean of all the peaks.
+            % AP_unzeroed(DAT_unzeroed(AP_unzeroed) < 0.35*mean(DAT_unzeroed(AP_unzeroed))) = [];
+            % AP_unzeroed(DAT_unzeroed(AP_unzeroed) > 3*mean(DAT_unzeroed(AP_unzeroed))) = [];
+            % AP(DAT(AP) < 0.35*mean(DAT(AP))) = [];
+            % AP(DAT(AP) > 3*mean(DAT(AP))) = [];
+
+            
+
+            if any(isoutlier(DAT(AP),'percentiles',[0.5 100]))
+                tRM = isoutlier(DAT(AP),'percentiles',[0.5 100]);
+                AP(tRM) = [];
+            end
+
+            % apT = (0:(length(DAT)-1))/200000;
+            % t = 1./diff(apT(AP));
+            % if any(isoutlier(t,'percentiles',[0 99]))
+            %     IDS = find(isoutlier(t,'percentiles',[0 99]));
+            %     toRM = [];
+            %     for ii = 1:length(IDS)
+            %         if DAT(AP(IDS(ii)))<mean(DAT(AP))*(3/4)
+            %             toRM = [toRM IDS(ii)];
+            %         elseif DAT(AP(IDS(ii)+1))<mean(DAT(AP))*(3/4)
+            %             toRM = [toRM IDS(ii)+1];
+            %         end
+            %     end
+            %     if any(isinf(t))
+            %         toRM = [toRM find(isinf(t))];
+            %         toRM = unique(toRM);
+            %     end
+            %     AP(toRM) = [];
+            % end
+
+            % Compute the AP Template, as the average of all the APs. Plot
+            % it.
+            IDX = -100:1000;
+            AVG = zeros(length(IDX), 1);
+            N = length(AP);
+            AVG_RAW = zeros(length(IDX), 1);
+            for i=1:N
+                if AP(i) + IDX(1) < 1; continue; end
+                if AP(i) + IDX(end) > length(SMOO); break; end
+                SIG = SMOO(AP(i)+IDX);
+                SIG_RAW = DAT(AP(i)+IDX);
+                %line(IDX, SIG);
+                AVG = AVG + SIG;
+                AVG_RAW = AVG_RAW + SIG_RAW;
+            end
+
+            AVG_unzeroed = zeros(length(IDX), 1);
+            AVG_RAW_unzeroed = zeros(length(IDX), 1);
+            N_unzeroed = length(AP_unzeroed);
+            for i=1:N_unzeroed
+                if AP_unzeroed(i) + IDX(1) < 1; continue; end
+                if AP_unzeroed(i) + IDX(end) > length(SMOO_unzeroed); break; end
+                SIG_unzeroed = SMOO_unzeroed(AP_unzeroed(i)+IDX);
+                SIG_RAW_unzeroed = DAT_unzeroed(AP_unzeroed(i)+IDX);
+                %line(IDX, SIG);
+                AVG_unzeroed = AVG_unzeroed + SIG_unzeroed;
+                AVG_RAW_unzeroed = AVG_RAW_unzeroed + SIG_RAW_unzeroed;
+            end
+
+            AVG = AVG ./ N;
+            AVG_RAW = AVG_RAW ./ N;
+            AVG_unzeroed = AVG_unzeroed ./ N_unzeroed;
+            AVG_RAW_unzeroed = AVG_RAW_unzeroed ./ N_unzeroed;
+
+            % Return a bunch of internal values in a struct, for debugging
+            % or plotting.
+            APT_unzeroed = MakeStruct(CLUMP_unzeroed, AP_unzeroed, SMOO_unzeroed, AVG_unzeroed, AVG_RAW_unzeroed);
+            APT = MakeStruct(CLUMP, AP, SMOO, AVG, AVG_RAW);
+
+        end
+
+        % Find/mark Action Potentials in analog data.
+        %
+        % Optionally pass a fixed Threshold. Otherwise, a moving maximum
+        % threshold is computed automatically.
+        %
+        % Return a struct with the various internal computed values.
         function [APT_unzeroed, APT] = FindAPs(obj, DAT, THRESH)
             % Subtract out baseline offset.
             DAT_unzeroed = DAT;
@@ -217,20 +363,20 @@ classdef ActionPotential_class <handle
         end
         
         function [samps, time, startPt, endPt, peakPolarization1, peakPolarization2, maxHyperpol] = findAPWidth(obj, apTemp, chan, debugPlot, debugPlots)
-            if isprop(obj.DAT,'APRefProperites')
-                if obj.DAT.APRefProperites.(chan).peakDePol2 == 0
+            if isprop(obj.DAT,'APRefProperties')
+                if obj.DAT.APRefProperties.(chan).peakDePol2 == 0
                     chanUsed = obj.DAT.GetChan(chan);
                     ap = apTemp.AVG_RAW;
                     apfilt = smooth(ap,15,'sgolay');
                     if debugPlot
-                        startPt=obj.DAT.APRefProperites.(chan).startPt;
+                        startPt=obj.DAT.APRefProperties.(chan).startPt;
 
-                        pt = obj.DAT.APRefProperites.(chan).peakDePol1;
+                        pt = obj.DAT.APRefProperties.(chan).peakDePol1;
                         [~,ml]=max(ap(pt-5:pt+5));
                         peakPolarization1 = ml+pt-6;
                         peakPolarization2 = 0;
 
-                        mt = obj.DAT.APRefProperites.(chan).maxHyperpol;
+                        mt = obj.DAT.APRefProperties.(chan).maxHyperpol;
                         [~,ml]=min(apfilt(mt-6:mt+6));
                         maxHyperpol = ml+mt-7;
 
@@ -555,8 +701,11 @@ classdef ActionPotential_class <handle
             end
             %%ss = smooth(DAT,501,'sgolay',101);
             id2U = 1;
-            while id2U < length(idxss)
+            while id2U <= length(idxss)
                 idxs = idxss(id2U);
+                p = (id2U-1)/length(idxss);
+                app.PBarObj.Position(3) = p*1000;
+                app.PBarTxt.String = [num2str(round(p*100)),'%'];
                 sz = size(D.StimBlocks(idxs).([chan,'_ALLSTIM']));
                 APLoc = zeros(sz);
                 APCount = 0;
@@ -570,7 +719,7 @@ classdef ActionPotential_class <handle
                 ds = [];
                 fullap = D.StimBlocks(idxs).([chan,'_APTemplate']).AVG_RAW(startPt+10:minPt) - mean(D.StimBlocks(idxs).([chan,'_APTemplate']).AVG_RAW);
                 fAP = D.StimBlocks(idxs).([chan,'_APTemplate']).AVG_RAW(startPt:endPt)';
-                
+
                 zappedDataY = D.StimBlocks(idxs).([chan,'_ZAPPED']);
                 zappedDataY = reshape(zappedDataY',1,198000);
                 [istart,istop,mindist] = findsignal(zappedDataY,fullap,'Normalization','center','NormalizationLength',100);
@@ -594,6 +743,9 @@ classdef ActionPotential_class <handle
                 uur = uur-shiftV;
                 uu = reshape(uur,1000,198)';
                 mm = movmax(uur,9000)*.65;
+                if app.APThreshChange
+                    mm(:) = app.FindAPThresholdEditField.Value;
+                end
                 mmr = reshape(mm,1000,198)';
                 sz = size(uu);
                 if fAP(1)>0.1
@@ -606,52 +758,63 @@ classdef ActionPotential_class <handle
                 if mAP > mean(movmax(uur,9000))*1.5
                     mAP = mAP*.7;
                 end
+                if mAP > app.DAT.APRefProperties.([chan]).peakDePol1Val*2
+                    mAP = app.DAT.APRefProperties.([chan]).peakDePol1Val;
+                end
                 skipNext = 0;
                 for ii = 1:sz(1)
                     if ~skipNext
                         if any(uu(ii,:)>mmr(ii,:))
                             ids2u = find(uu(ii,:)>mmr(ii,:));
                             [mVal,mLoc]=max(uu(ii,ids2u));
-                            if mVal>mAP*.6
-                                if ids2u(mLoc)>950
-                                    if ii+1<sz(1)
-                                        un = uu(ii+1,1:150);
-                                        un2 = [uu(ii,:) un];
-                                        [mVal,mLoc]=max(un2(950:end));
-                                        mLoc = mLoc+950-1;
-                                        if mLoc <= 1000
-                                            APLoc(ii,mLoc) = 1;
-                                            APCount = APCount + 1;
-                                            skipNext = 1;
-                                        end
-                                    end
-                                elseif ids2u(mLoc)<50
-                                    if length(ids2u) >10
-                                        id = ids2u(mLoc);
-                                        APLoc(ii,id) = 1;
-                                        APCount = APCount + 1;
-                                    end
-                                else
+                            if app.APThreshChange
+                                if mVal>mAP*.6
                                     id = ids2u(mLoc);
-                                    if mVal < 0.1
-                                        y=lowpass(uu(ii,:),200,200000);
-                                        if y(id)>mAP*.6
+                                    APLoc(ii,id) = 1;
+                                    APCount = APCount + 1;
+                                end
+                            else
+                                if mVal>mAP*.6
+                                    if ids2u(mLoc)>950
+                                        if ii+1<sz(1)
+                                            un = uu(ii+1,1:150);
+                                            un2 = [uu(ii,:) un];
+                                            [mVal,mLoc]=max(un2(950:end));
+                                            mLoc = mLoc+950-1;
+                                            if mLoc <= 1000
+                                                APLoc(ii,mLoc) = 1;
+                                                APCount = APCount + 1;
+                                                skipNext = 1;
+                                            end
+                                        end
+                                    elseif ids2u(mLoc)<50
+                                        if length(ids2u) >10
+                                            id = ids2u(mLoc);
                                             APLoc(ii,id) = 1;
                                             APCount = APCount + 1;
                                         end
                                     else
-                                        APLoc(ii,id) = 1;
-                                        APCount = APCount + 1;
+                                        id = ids2u(mLoc);
+                                        if mVal < 0.1
+                                            y=lowpass(uu(ii,:),200,200000);
+                                            if y(id)>mAP*.6
+                                                APLoc(ii,id) = 1;
+                                                APCount = APCount + 1;
+                                            end
+                                        else
+                                            APLoc(ii,id) = 1;
+                                            APCount = APCount + 1;
+                                        end
                                     end
+
                                 end
-                                
                             end
                         end
                     else
                         skipNext = 0;
                     end
                 end
-
+                app.APThreshChange = 0;
                 if debugFlg
                     figure
                     ALLSTIMPlot = reshape(D.StimBlocks(idxs).([chan,'_ALLSTIM'])',1,198000);
@@ -679,7 +842,7 @@ classdef ActionPotential_class <handle
                     app.CurrID = idxs;
                     app.CurrChannel = chan;
                     ALLSTIMPlot = reshape(D.StimBlocks(idxs).([chan,'_ALLSTIM'])',1,198000);
-                    ZO = reshape(D.StimBlocks(idxs).([chan,'_ZAPPED'])',1,198000);
+                    ZO = reshape(D.StimBlocks(idxs).([chan,'_ZAPPED'])',1,198000)-mean(reshape(D.StimBlocks(idxs).([chan,'_ZAPPED'])',1,198000));
                     apl = reshape(app.tempAPLoc',1,198000);
 %                     aa = axes(app.AnalysisPlotsTab);
                     plot(aa,ALLSTIMPlot)
@@ -688,7 +851,7 @@ classdef ActionPotential_class <handle
                     plot(aa,find(apl),ZO(find(apl)),'g*')
                     hold(aa,'off')
                     aa.XLim = [-5000 50000]; %200000
-                    aa.YLim = [mean(ZO(find(apl)))*-.8 mean(ZO(find(apl)))*1.3];
+                    aa.YLim = [min(ZO(find(apl)))*-.8 max(ZO(find(apl)))*1.3];
                     aa.Title.String = [num2str(APCount),' Total APs'];
 %                     name = ['Stim ',num2str(D.StimBlocks(idxs).Stim_E),' Ref ',num2str(D.StimBlocks(idxs).Ref_E),' Current ',num2str(D.StimBlocks(idxs).Current_uA),' Block Number ',num2str(idxs)];
 %                     aa.Title.String(name);
@@ -716,8 +879,10 @@ classdef ActionPotential_class <handle
                     cla(app.FigPlot)
                     drawnow
                 end
-                if 
-                id2U = id2U + 1;
+                if ~app.APThreshChange
+                    id2U = id2U + 1;
+                    app.FindAPThresholdEditField.Value = 0;
+                end
             end
             if isempty(app)
                 

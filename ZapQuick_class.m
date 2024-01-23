@@ -71,11 +71,13 @@ classdef ZapQuick_class <handle
 
             
             li = length(idxss);
-            nns = 1;
-            for idxs = idxss
+            id2U = 1;
+            while id2U <= length(idxss)
+                idxs = idxss(id2U);
+%             for idxs = idxss
                 Name = ['Stim ',num2str(D.StimBlocks(idxs).Stim_E),' Ref ',num2str(D.StimBlocks(idxs).Ref_E), ' Current ', num2str(D.StimBlocks(idxs).Current_uA)];
                 if isempty(app)
-                    waitbar((nns-1)/li,ffWait,['Subtracting Artifact From: ',Name])
+                    waitbar((id2U-1)/li,ffWait,['Subtracting Artifact From: ',Name])
                 else
                     app.ProgressBar.Title.String = ['Subtracting Artifact From: ',Name];
                     app.idxs = idxs;
@@ -96,6 +98,7 @@ classdef ZapQuick_class <handle
                     ALLSTIM = reshape(ASP,1000,198)';
                     D.StimBlocks(idxs).([chan,'_ALLSTIM']) = ALLSTIM;
                     app.ProgressBar.Title.String = ['Subtracting Artifact From: ',Name, ' - Getting AP Info'];
+
                     [apSamps, apTime, startPt, endPt, peakDePol1, peakDePol2, maxHyperpol] = APC.findAPWidth(D.StimBlocks(idxs).([chan,'_APTemplate']), chan, 1, debugPlots);
                     if 1
                         if ~isempty(debugPlots)
@@ -386,115 +389,143 @@ classdef ZapQuick_class <handle
                     if app.stopButton.Value
                         break
                     end
-                    if ~isempty(debugPlots)
-                        if app.SplineTempButton.Value
-                            if isempty(app.ALLSTIM)
-                                D.StimBlocks(idxs).([chan,'_ZAPPED']) = ZAPPED;
-                                D.StimBlocks(idxs).([chan,'_ALLSTIM']) = ALLSTIM;
-                                D.StimBlocks(idxs).([chan,'_ArtifactTemplate_All']) = temp2Use;
-                                D.StimBlocks(idxs).([chan,'_ArtifactTemplate_used']) = temp2Use;
-                            else
-                                D.StimBlocks(idxs).([chan,'_ZAPPED']) = app.ZAPPED;
-                                D.StimBlocks(idxs).([chan,'_ALLSTIM']) = app.ALLSTIM;
-                                D.StimBlocks(idxs).([chan,'_ArtifactTemplate_All']) = app.temp2Use;
-                                D.StimBlocks(idxs).([chan,'_ArtifactTemplate_used']) = app.temp2Use;
-                            end
-                            D.StimBlocks(idxs).([chan,'_ArtifactTemplate_confirmed']) = 1;
-                            
-                            app.SplineTempButton.Value = 0;
-                        elseif app.BinTempButton.Value
-                            if isempty(app.ALLSTIM2)
-                                D.StimBlocks(idxs).([chan,'_ZAPPED']) = ZAPPED2;
-                                D.StimBlocks(idxs).([chan,'_ALLSTIM']) = ALLSTIM2;
-                                D.StimBlocks(idxs).([chan,'_ArtifactTemplate_All']) = noresponse;
-                                D.StimBlocks(idxs).([chan,'_ArtifactTemplate_used']) = mean(noresponse);
-                            else
-                                D.StimBlocks(idxs).([chan,'_ZAPPED']) = app.ZAPPED2;
-                                D.StimBlocks(idxs).([chan,'_ALLSTIM']) = app.ALLSTIM2;
-                                D.StimBlocks(idxs).([chan,'_ArtifactTemplate_All']) = app.noresponse;
-                                D.StimBlocks(idxs).([chan,'_ArtifactTemplate_used']) = mean(app.noresponse);
-                            end
-                            D.StimBlocks(idxs).([chan,'_ArtifactTemplate_confirmed']) = 1;
-                            
-                            app.BinTempButton.Value = 0;
-                        elseif app.ReSizeTempButton.Value
-                            if isempty(app.ALLSTIM3)
-                                D.StimBlocks(idxs).([chan,'_ZAPPED']) = ZAPPED3;
-                                D.StimBlocks(idxs).([chan,'_ALLSTIM']) = ALLSTIM3;
-                                D.StimBlocks(idxs).([chan,'_ArtifactTemplate_All'])  = t;
-                                D.StimBlocks(idxs).([chan,'_ArtifactTemplate_used']) = t;
-                            else
-                                D.StimBlocks(idxs).([chan,'_ZAPPED']) = app.ZAPPED3;
-                                D.StimBlocks(idxs).([chan,'_ALLSTIM']) = app.ALLSTIM3;
-                                D.StimBlocks(idxs).([chan,'_ArtifactTemplate_All'])  = app.temp2Use2;
-                                D.StimBlocks(idxs).([chan,'_ArtifactTemplate_used']) = app.temp2Use2;
-                            end
-                            app.ReSizeTempButton.Value = 0;
-                            %D.DAGAN2templ_used(:,idxs) = t;
-                            D.StimBlocks(idxs).([chan,'_ArtifactTemplate_confirmed']) = 1;
-                            
-                            fullap = D.StimBlocks(idxs).([chan,'_APTemplate']).AVG_RAW(startPt:maxHyperpol+10) - mean(D.StimBlocks(idxs).([chan,'_APTemplate']).AVG_RAW);
-                            if D.StimBlocks(idxs).Current_uA ~= 200
-                                fornextTemp = [];
-                                BLOCK = D.StimBlocks(idxs);
-                                STIMS = find((D.Stim_ticks >= [BLOCK.Start_tick]) ...
-                                    & (D.Stim_ticks <= [BLOCK.End_tick]));
-                                ticks = D.Stim_ticks(STIMS)./2;
-                                ticks = ticks - (ticks(1)-1);
-                                for pos = 1:length(ticks)
-                                    if pos == length(ticks)
-                                        bound = ticks(pos):length(ALLSTIMPlot);
-                                    else
-                                        bound = ticks(pos):(ticks(pos+1)-1);
-                                    end
-                                    if ~any(isnan(ZAPPEDPlot2))
-                                        u = ZAPPEDPlot2(bound);% - mean(ZAPPEDPlot2);
-                                    else
-                                        u = ZAPPEDPlot3(bound);
-                                    end
-                                    u = u-mean(u);
-                                    %                                             figure
-                                    %                                             findsignal(u,fullap);
-                                    %                                             abc = gcf;
-                                    %                                             abc.Position = [1          41        1920         963];
-                                    %                                             close(abc)
-                                    [istart,istop,dist] = findsignal(u,fullap);
-                                    [maxv,maxl]=max(u(40:end));
-                                    maxl = maxl +39;
-                                    %                                     maxls = [maxls maxl];
-                                    if (maxl > istart) && (maxl < istop)
-                                        if maxl < 300
-                                            u2 = ALLSTIMPlot2(bound);
-                                            fAP = D.StimBlocks(idxs).([chan,'_APTemplate']).AVG_RAW(startPt:endPt)';
-                                            u2(istart:(istart+length(fAP)-1)) = u2(istart:(istart+length(fAP)-1)) - fAP;
-                                            fornextTemp = [fornextTemp; u2];
-                                        end
-                                    else
-                                        maxl;
-                                        maxv/max(fullap);
-                                        if (maxl < 85) && (maxv/max(fullap) < 0.7)
-                                            %noresponse Maybe add saving this stim
-                                            
-                                        elseif maxl > 150
-                                            %noresponse
-                                        else
-                                            %response = [response; ALLSTIMPlot(bound)];
-                                            %                             figure
-                                            %                             findsignal(u(1:250),fullap);
-                                            %                             abc = gcf;
-                                            %                             abc.Position = [1          41        1920         963];
-                                            %                             close(abc)
-                                            [istart,istop,dist] = findsignal(u(1:250),fullap);
-                                            u2 = ALLSTIMPlot2(bound);
-                                            fAP = D.StimBlocks(idxs).([chan,'_APTemplate']).AVG_RAW(startPt:endPt)';
-                                            u2(istart:(istart+length(fAP)-1)) = u2(istart:(istart+length(fAP)-1)) - fAP;
-                                            fornextTemp = [fornextTemp; u2];
-                                        end
-                                    end
+                    if ~app.TemplateRedo
+                        if ~isempty(debugPlots)
+                            if app.SplineTempButton.Value
+                                if isempty(app.ALLSTIM)
+                                    D.StimBlocks(idxs).([chan,'_ZAPPED']) = ZAPPED;
+                                    D.StimBlocks(idxs).([chan,'_ALLSTIM']) = ALLSTIM;
+                                    D.StimBlocks(idxs).([chan,'_ArtifactTemplate_All']) = temp2Use;
+                                    D.StimBlocks(idxs).([chan,'_ArtifactTemplate_used']) = temp2Use;
+                                else
+                                    D.StimBlocks(idxs).([chan,'_ZAPPED']) = app.ZAPPED;
+                                    D.StimBlocks(idxs).([chan,'_ALLSTIM']) = app.ALLSTIM;
+                                    D.StimBlocks(idxs).([chan,'_ArtifactTemplate_All']) = app.temp2Use;
+                                    D.StimBlocks(idxs).([chan,'_ArtifactTemplate_used']) = app.temp2Use;
                                 end
-                                D.StimBlocks(idxs+1).([chan,'_ArtifactTemplate_t']) = mean(fornextTemp);
+                                D.StimBlocks(idxs).([chan,'_ArtifactTemplate_confirmed']) = 1;
+
+                                app.SplineTempButton.Value = 0;
+                            elseif app.BinTempButton.Value
+                                if isempty(app.ALLSTIM2)
+                                    D.StimBlocks(idxs).([chan,'_ZAPPED']) = ZAPPED2;
+                                    D.StimBlocks(idxs).([chan,'_ALLSTIM']) = ALLSTIM2;
+                                    D.StimBlocks(idxs).([chan,'_ArtifactTemplate_All']) = noresponse;
+                                    D.StimBlocks(idxs).([chan,'_ArtifactTemplate_used']) = mean(noresponse);
+                                else
+                                    D.StimBlocks(idxs).([chan,'_ZAPPED']) = app.ZAPPED2;
+                                    D.StimBlocks(idxs).([chan,'_ALLSTIM']) = app.ALLSTIM2;
+                                    D.StimBlocks(idxs).([chan,'_ArtifactTemplate_All']) = app.noresponse;
+                                    D.StimBlocks(idxs).([chan,'_ArtifactTemplate_used']) = mean(app.noresponse);
+                                end
+                                D.StimBlocks(idxs).([chan,'_ArtifactTemplate_confirmed']) = 1;
+
+                                app.BinTempButton.Value = 0;
+                            elseif app.ReSizeTempButton.Value
+                                if isempty(app.ALLSTIM3)
+                                    D.StimBlocks(idxs).([chan,'_ZAPPED']) = ZAPPED3;
+                                    D.StimBlocks(idxs).([chan,'_ALLSTIM']) = ALLSTIM3;
+                                    D.StimBlocks(idxs).([chan,'_ArtifactTemplate_All'])  = t;
+                                    D.StimBlocks(idxs).([chan,'_ArtifactTemplate_used']) = t;
+                                else
+                                    D.StimBlocks(idxs).([chan,'_ZAPPED']) = app.ZAPPED3;
+                                    D.StimBlocks(idxs).([chan,'_ALLSTIM']) = app.ALLSTIM3;
+                                    D.StimBlocks(idxs).([chan,'_ArtifactTemplate_All'])  = app.temp2Use2;
+                                    D.StimBlocks(idxs).([chan,'_ArtifactTemplate_used']) = app.temp2Use2;
+                                end
+                                app.ReSizeTempButton.Value = 0;
+                                %D.DAGAN2templ_used(:,idxs) = t;
+                                D.StimBlocks(idxs).([chan,'_ArtifactTemplate_confirmed']) = 1;
+
+                                fullap = D.StimBlocks(idxs).([chan,'_APTemplate']).AVG_RAW(startPt:maxHyperpol+10) - mean(D.StimBlocks(idxs).([chan,'_APTemplate']).AVG_RAW);
+                                if D.StimBlocks(idxs).Current_uA ~= 200
+                                    fornextTemp = [];
+                                    BLOCK = D.StimBlocks(idxs);
+                                    STIMS = find((D.Stim_ticks >= [BLOCK.Start_tick]) ...
+                                        & (D.Stim_ticks <= [BLOCK.End_tick]));
+                                    ticks = D.Stim_ticks(STIMS)./2;
+                                    ticks = ticks - (ticks(1)-1);
+                                    for pos = 1:length(ticks)
+                                        if pos == length(ticks)
+                                            bound = ticks(pos):length(ALLSTIMPlot);
+                                        else
+                                            bound = ticks(pos):(ticks(pos+1)-1);
+                                        end
+                                        if ~any(isnan(ZAPPEDPlot2))
+                                            u = ZAPPEDPlot2(bound);% - mean(ZAPPEDPlot2);
+                                        else
+                                            u = ZAPPEDPlot3(bound);
+                                        end
+                                        u = u-mean(u);
+                                        %                                             figure
+                                        %                                             findsignal(u,fullap);
+                                        %                                             abc = gcf;
+                                        %                                             abc.Position = [1          41        1920         963];
+                                        %                                             close(abc)
+                                        [istart,istop,dist] = findsignal(u,fullap);
+                                        [maxv,maxl]=max(u(40:end));
+                                        maxl = maxl +39;
+                                        %                                     maxls = [maxls maxl];
+                                        if (maxl > istart) && (maxl < istop)
+                                            if maxl < 300
+                                                u2 = ALLSTIMPlot2(bound);
+                                                fAP = D.StimBlocks(idxs).([chan,'_APTemplate']).AVG_RAW(startPt:endPt)';
+                                                u2(istart:(istart+length(fAP)-1)) = u2(istart:(istart+length(fAP)-1)) - fAP;
+                                                fornextTemp = [fornextTemp; u2];
+                                            end
+                                        else
+                                            maxl;
+                                            maxv/max(fullap);
+                                            if (maxl < 85) && (maxv/max(fullap) < 0.7)
+                                                %noresponse Maybe add saving this stim
+
+                                            elseif maxl > 150
+                                                %noresponse
+                                            else
+                                                %response = [response; ALLSTIMPlot(bound)];
+                                                %                             figure
+                                                %                             findsignal(u(1:250),fullap);
+                                                %                             abc = gcf;
+                                                %                             abc.Position = [1          41        1920         963];
+                                                %                             close(abc)
+                                                [istart,istop,dist] = findsignal(u(1:250),fullap);
+                                                u2 = ALLSTIMPlot2(bound);
+                                                fAP = D.StimBlocks(idxs).([chan,'_APTemplate']).AVG_RAW(startPt:endPt)';
+                                                u2(istart:(istart+length(fAP)-1)) = u2(istart:(istart+length(fAP)-1)) - fAP;
+                                                fornextTemp = [fornextTemp; u2];
+                                            end
+                                        end
+                                    end
+                                    D.StimBlocks(idxs+1).([chan,'_ArtifactTemplate_t']) = mean(fornextTemp);
+                                end
                             end
+                            app.ALLSTIM = [];
+                            app.ZAPPED = [];
+                            app.ALLSTIM2 = [];
+                            app.ZAPPED2 = [];
+                            app.ALLSTIM3 = [];
+                            app.ZAPPED3 = [];
+                            app.temp2Use = [];
+                            app.temp2Use2 = [];
+                            app.noresponse = [];
+
+                            cla(debugPlots.apPoints)
+                            cla(debugPlots.artPoints)
+                            cla(debugPlots.ReartPoints)
+                            cla(debugPlots.NoResponsePlot)
+                            cla(debugPlots.ResponsePlot)
+                            cla(debugPlots.first)
+                            cla(debugPlots.second)
+                            cla(debugPlots.third)
+
+                        else
+                            D.StimBlocks(idxs).([chan,'_ZAPPED']) = ZAPPED2;
+                            D.StimBlocks(idxs).([chan,'_ALLSTIM']) = ALLSTIM2;
+                            D.StimBlocks(idxs).([chan,'_ArtifactTemplate_All']) = noresponse;
+                            D.StimBlocks(idxs).([chan,'_ArtifactTemplate_used']) = mean(noresponse);
+                            D.StimBlocks(idxs).([chan,'_ArtifactTemplate_confirmed']) = 1;
                         end
+                    else
                         app.ALLSTIM = [];
                         app.ZAPPED = [];
                         app.ALLSTIM2 = [];
@@ -514,13 +545,439 @@ classdef ZapQuick_class <handle
                         cla(debugPlots.second)
                         cla(debugPlots.third)
                         
-                    else
-                        D.StimBlocks(idxs).([chan,'_ZAPPED']) = ZAPPED2;
-                        D.StimBlocks(idxs).([chan,'_ALLSTIM']) = ALLSTIM2;
-                        D.StimBlocks(idxs).([chan,'_ArtifactTemplate_All']) = noresponse;
-                        D.StimBlocks(idxs).([chan,'_ArtifactTemplate_used']) = mean(noresponse);
-                        D.StimBlocks(idxs).([chan,'_ArtifactTemplate_confirmed']) = 1;
                     end
+
+
+                end
+
+                
+                obj.DAT = D;
+                if ~app.TemplateRedo
+                    if isempty(app)
+                        waitbar((id2U)/li,ffWait,['Subtracting Artifact From: ',Name])
+                    else
+                        app.PBarObj.Position(3) = (id2U)/li*1000;
+                        app.PBarTxt.String = [num2str(round((id2U)/li*100)),'%'];
+                        drawnow
+                    end
+                    id2U = id2U + 1;
+                else
+                    app.TemplateRedo = 0;
+                end
+            end
+            
+            if isempty(app)
+                waitbar((id2U)/li,ffWait,['Finished'])
+                close(ffWait)
+            else
+                app.ProgressBar.Title.String = 'Finished';
+                app.PBarObj.Position(3) = (id2U)/li*1000;
+                app.PBarTxt.String = [num2str(round((id2U)/li*100)),'%'];
+                drawnow
+            end
+            obj.DAT = D;
+        end
+		
+        function [response, noresponse] = BinnedTemplate(obj, idxs, chan, ZAPPEDPlot, ALLSTIM, debugPlots, showFindFlg)
+            D = obj.DAT; % Just for convenience.
+            peakDePol1 = D.StimBlocks(idxs).([chan,'_APTemplate']).peakDePol1;
+            startPt = D.StimBlocks(idxs).([chan,'_APTemplate']).startPt;
+            endPt = D.StimBlocks(idxs).([chan,'_APTemplate']).endPt;
+            ALLSTIMPlot = reshape(ALLSTIM',1,198000);
+
+            trimAPTemp = D.StimBlocks(idxs).([chan,'_APTemplate']).AVG_RAW(peakDePol1-10:peakDePol1+35);
+            trimAPTemp = trimAPTemp - mean(D.StimBlocks(idxs).([chan,'_APTemplate']).AVG_RAW);
+
+            if max(trimAPTemp) > D.APRefProperties.([chan]).peakDePol1Val*2
+            end
+
+            if ismember({chan},'NerveCon')
+                trimAPTemp = D.StimBlocks(idxs).([chan,'_APTemplate']).AVG_RAW(startPt:endPt);
+                trimAPTemp = trimAPTemp - mean(D.StimBlocks(idxs).([chan,'_APTemplate']).AVG_RAW);
+            end
+            BLOCK = D.StimBlocks(idxs);
+            STIMS = find((D.Stim_ticks >= [BLOCK.Start_tick]) ...
+                & (D.Stim_ticks <= [BLOCK.End_tick]));
+            ticks = D.Stim_ticks(STIMS)./2;
+            ticks = ticks - (ticks(1)-1);
+            sz = 1;
+            if all(D.StimBlocks(idxs).([chan,'_ArtifactTemplate_t'])==0)
+                %if isfield(D.StimBlocks(idxs-1),'AllArtTemps')
+                si = size(D.StimBlocks(idxs-1).([chan,'_ArtifactTemplate_All']));
+                if (si(1)<40) && (si(1) ~= 0) && (D.StimBlocks(idxs).Current_uA ~= 20)
+                    sz = 1;
+                end
+                %end
+
+                if sz
+                    response = [];
+                    noresponse = [];
+                    d = [];
+                    %             sbs = zeros(1,198);
+                    vals = [];
+                    maxls = [];
+                    if ismember({chan},'NerveCon')
+                        [pospks,lposocs,posw,posp] = findpeaks(ZAPPEDPlot,1:length(ZAPPEDPlot),'minpeakheight',max(trimAPTemp)*.5,'minpeakdistance',900);
+
+                        if length(pospks)>180
+                            testFP = 1;
+                            response = ALLSTIM;
+                        else
+                            testFP = 0;
+                        end
+                    else
+                        testFP = 0;
+                    end
+                    if ~testFP
+                        for pos = 1:length(ticks)
+                            noresponseFlag = 0;
+                            responseFlag = 0;
+                            if pos == length(ticks)
+                                bound = round(ticks(pos)):length(ALLSTIMPlot);
+                            else
+                                bound = round(ticks(pos)):(round(ticks(pos+1))-1);
+                            end
+                            if length(bound) == 999
+                                bound = [bound bound(end)+1];
+                            elseif length(bound) > 1000
+                                bound(1) = [];
+                            end
+                            newALLSTIMPlot = ZAPPEDPlot(bound);%ALLSTIMPlot(bound)-D.DAGAN2templ(:,idxs)';% 1.
+                            newALLSTIMPlot = newALLSTIMPlot - mean(newALLSTIMPlot);
+
+                            [maxv,maxl]=max(newALLSTIMPlot(40:end));
+                            maxl = maxl +39;
+
+                            %                 [maxv2,maxl2]=max(newALLSTIMPlot(40:end)-mean(newALLSTIMPlot));
+                            %                 maxl2 = maxl2 +39;
+                            if showFindFlg
+                                figure
+                                if ismember({chan},'NerveCon')
+                                    findsignal(newALLSTIMPlot,trimAPTemp,'Normalization','zscore','NormalizationLength',10);
+                                else
+                                    findsignal(newALLSTIMPlot,trimAPTemp);
+                                end
+
+                                abc = gcf;
+                                abc.Position = [1          41        1920         963];
+                                hold on
+                                plot(maxl,newALLSTIMPlot(maxl),'r*')
+                                hold off
+                            end
+
+                            if ismember({chan},'NerveCon')
+                                [istart,istop,dist] = findsignal(newALLSTIMPlot,trimAPTemp,'Normalization','zscore','NormalizationLength',10);
+                                coLim = 195;
+                            else
+                                coLim = 150;
+                                [istart,istop,dist] = findsignal(newALLSTIMPlot,trimAPTemp);
+                            end
+                            %                 [istart2,istop2,dist2] = findsignal(newALLSTIMPlot-mean(newALLSTIMPlot),trimAPTemp); %2.
+                            d = [d dist];
+                            dist;
+                            val = istart-1;%ticks(pos)-istart
+                            %val2 = istart2-1;
+                            vals = [vals val];
+                            t1 = newALLSTIMPlot;
+                            %                     t2 = newALLSTIMPlot-mean(newALLSTIMPlot);
+                            [t1mv, t1ml] = max(t1(istart:istop));
+                            t1ml = t1ml+istart-1;
+                            %                     [t2mv, t2ml] = max(t2(istart:istop));
+
+                            % 1. If the max peak and the findsignal align
+                            % 2. Check max within findsignal
+                            if (maxl > istart) && (maxl < istop)
+                                if abs(val) > coLim %%%%%%%% used to be 110
+                                    noresponseFlag = 1;
+                                    responseFlag = 0;
+                                else
+                                    if (maxl <= coLim) && (maxv/max(trimAPTemp) < 0.6)  %used to be 130
+                                        %                             if (dist2 < 0.25) && (maxv2/max(trimAPTemp)>0.6) %0.5
+                                        %                                 response = [response; ALLSTIMPlot(bound)-mean(ALLSTIMPlot(bound))]; % 3.
+                                        %                                 sbs(pos) = 1;
+                                        if (maxl <115) && (maxv/max(trimAPTemp) > 0.35) && (maxv/max(trimAPTemp)< 0.6) %&& (dist >0.25)
+                                            noresponseFlag = 0;
+                                            responseFlag = 1;
+                                        else
+                                            noresponseFlag = 1;
+                                            responseFlag = 0;
+                                        end
+                                    elseif maxl > coLim %used to be 130
+                                        noresponseFlag = 1;
+                                        responseFlag = 0;
+                                    else
+                                        noresponseFlag = 0;
+                                        responseFlag = 1;
+                                    end
+                                    %                     if dist > 0.5
+                                    %                         noresponse = [noresponse; ALLSTIMPlot(bound)]; % 4.
+                                    %                     else
+                                    %                         response = [response; ALLSTIMPlot(bound)]; % 3.
+                                    %                     end
+                                end
+                            else
+                                %                     if (dist2 < 0.25) && (maxv2/max(trimAPTemp)>0.6) %0.5
+                                %                                 response = [response; ALLSTIMPlot(bound)-mean(ALLSTIMPlot(bound))]; % 3.
+                                %                                 sbs(pos) = 1;
+
+                                if (t1ml <coLim) && (t1mv/max(trimAPTemp) > 0.6)
+                                    noresponseFlag = 0;
+                                    responseFlag = 1;
+                                elseif (t1ml <115) && (t1mv/max(trimAPTemp) > 0.35) && (t1mv/max(trimAPTemp)< 0.6)
+                                    noresponseFlag = 0;
+                                    responseFlag = 1;
+                                elseif ismember({chan},'NerveCon')
+                                    [~,~,dd]=findsignal(newALLSTIMPlot,trimAPTemp);
+                                    if D.StimBlocks(idxs).Current_uA > 100
+                                        if length(trimAPTemp) < 100
+                                            [~,~,dd]=findsignal(newALLSTIMPlot,trimAPTemp);
+                                        else
+                                            [~,~,dd]=findsignal(newALLSTIMPlot,trimAPTemp(1:100));
+                                        end
+                                        thresh = 1;
+                                    else
+                                        thresh = 0.1;
+                                    end
+
+                                    if dd<thresh
+                                        noresponseFlag = 0;
+                                        responseFlag = 1;
+                                    else
+                                        noresponseFlag = 1;
+                                        responseFlag = 0;
+                                    end
+                                else
+                                    noresponseFlag = 1;
+                                    responseFlag = 0;
+                                end
+
+                                %                     [maxl];
+                                %                     [maxv/max(trimAPTemp)];
+                                %                     [dist];
+                                %                     if (maxl < 130) && (maxv/max(trimAPTemp) < 0.6)
+                                %                         noresponse = [noresponse; ALLSTIMPlot(bound)-mean(ALLSTIMPlot(bound))]; % 4.
+                                %                     elseif maxl > 130
+                                %                         noresponse = [noresponse; ALLSTIMPlot(bound)-mean(ALLSTIMPlot(bound))];
+                                %                     else
+                                %                         response = [response; ALLSTIMPlot(bound)-mean(ALLSTIMPlot(bound))]; % 3.
+                                %                         sbs(pos) = 1;
+                                %                     end
+                            end
+                            if length(bound) ~= 1000
+                                stpppp = 1;
+                            end
+                            if noresponseFlag
+                                noresponse = [noresponse; ALLSTIMPlot(bound)-mean(ALLSTIMPlot(bound))]; % 4.
+                            end
+                            if responseFlag
+                                response = [response; ALLSTIMPlot(bound)-mean(ALLSTIMPlot(bound))]; % 3.
+                                sbs(pos) = 1;
+                            end
+                            if showFindFlg
+                                close(abc)
+                            end
+
+                        end
+                    end
+
+                    if 1
+                        if ~isempty(debugPlots)
+                            sz = size(noresponse);
+                            for i = 1:sz(1)
+                                plot(debugPlots.NoResponsePlot,noresponse(i,:))
+                                hold(debugPlots.NoResponsePlot, 'on')
+                            end
+                            plot(debugPlots.NoResponsePlot,mean(noresponse),'color','k','linewidth',3)
+                            debugPlots.NoResponsePlot.Title.String = ['No Response ',num2str(sz(1))] ;
+                            debugPlots.NoResponsePlot.YLim = [-0.5 0.5];
+                            hold(debugPlots.NoResponsePlot, 'off')
+                            drawnow
+
+                            sz = size(response);
+                            for i = 1:sz(1)
+                                plot(debugPlots.ResponsePlot, response(i,:))
+                                hold(debugPlots.ResponsePlot,'on')
+                            end
+                            plot(debugPlots.ResponsePlot,mean(response),'color','k','linewidth',3)
+                            debugPlots.ResponsePlot.Title.String = ['Response ',num2str(sz(1))];
+                            debugPlots.ResponsePlot.YLim = [-0.5 0.5];
+                            hold(debugPlots.ResponsePlot,'off')
+                            drawnow
+                        else
+                            b=figure;
+                            sz = size(noresponse);
+                            ba = subplot(1,2,1);
+                            for i = 1:sz(1)
+                                plot(noresponse(i,:))
+                                hold on
+                            end
+                            plot(mean(noresponse),'color','k','linewidth',3)
+                            ba.Title.String = ['No Response ',num2str(sz(1))] ;
+                            hold off
+
+                            sz = size(response);
+                            bb = subplot(1,2,2);
+                            for i = 1:sz(1)
+                                plot(response(i,:))
+                                hold on
+                            end
+                            plot(mean(response),'color','k','linewidth',3)
+                            bb.Title.String = ['Response ',num2str(sz(1))];
+                            hold off
+                            b.Position = [1          41        1920         963];
+                        end
+                        sz = size(noresponse);
+                    end
+                end
+            else
+                if 1
+                    if ~isempty(debugPlots)
+                        b=[];
+                    else
+                        b=figure;
+                    end
+                end
+                response = ALLSTIM;
+                noresponse = [];
+                sz = 0;
+            end
+        end
+		
+        
+        % Zap a block of data. Copy the original data from Values, and put
+		% the zapped data at the same location in Values_zapped. FOR
+		% CONVENIENCE ONLY, return ALLSTIM and ZAPPED, for easy plotting of
+		% the "before" and "after" overlapped stim blocks.
+		function [ALLSTIM, ZAPPED] = ZapBlock(obj, Block_idx, TEMPLATE, chan, Positivepks, cornerpt)
+			DAT = obj.DAT; % Just for convenience.
+			
+			% If TEMPLATE is not provided, then we just "self zap" using this
+			% block to create the zapping template.
+			if nargin < 3
+				TEMPLATE = obj.GetZapTemplate(Block_idx);
+			end
+			
+			BLOCK = DAT.StimBlocks(Block_idx);
+			STIMS = find((DAT.Stim_ticks >= [BLOCK.Start_tick]) ...
+				& (DAT.Stim_ticks <= [BLOCK.End_tick]));
+			
+			NSAMPS = length(TEMPLATE);
+			ALLSTIM = zeros(length(STIMS), NSAMPS);
+			
+            if ~isfield(DAT.StimBlocks(Block_idx),[chan,'_ALLSTIM'])
+                % Subtract the TEMPLATE out of the source obj.Values data at each
+                % stim pulse in this block, and store it in obj.Values_zapped.
+                for i=1:length(STIMS)
+                    %                 figure
+                    %                 bc = gcf;
+                    tick = DAT.Stim_ticks(STIMS(i));
+                    [VALS, s_idx, e_idx] = obj.DAT.ValsAtTick(tick, NSAMPS, chan);
+                    %                 plot(VALS)
+                    %                 hold on
+                    %                 plot(TEMPLATE)
+                    if isempty(VALS); continue; end
+                    %obj.Values_zapped(s_idx:e_idx) = VALS - TEMPLATE(:);
+                    %                 plot(obj.Values_zapped(s_idx:e_idx))
+                    %                 hold off
+                    %                 close(bc)
+                    ALLSTIM(i,:) = VALS;
+                end
+                ALLSTIM = ALLSTIM - mean(ALLSTIM(:,1));
+            else
+                ALLSTIM = DAT.StimBlocks(Block_idx).([chan,'_ALLSTIM']);
+            end
+            if iscolumn(TEMPLATE)
+                TEMPLATE = TEMPLATE';
+            end
+            sz = size(ALLSTIM);
+            ZAPPED = ALLSTIM - TEMPLATE;
+            for ii = 1:sz(1)
+                u = ALLSTIM(ii,:);
+                [aa,ab] = max(u);
+                [a2,ab2]=min(u);
+                sameMin = find(u(1:150)-a2<0.005);
+                sameMax = find(aa-u(1:150)<0.005);
+                
+                if length(sameMin)>4
+                    ZAPPED(ii,sameMin) = ZAPPED(ii,sameMin(1)-1);
+                end
+                if length(sameMax)>4
+                    if (sameMax(1)-1) < 1
+                    else
+                        sameMax = [sameMax(1)-1 sameMax];
+                    end
+                    ZAPPED(ii,sameMax) = ZAPPED(ii,sameMax(end)+1);
+                end
+                if ~any(isnan([ZAPPED(ii,1:55)]))
+                    ZAPPED(ii,1:55) = filtfilt(ones(1,9)/9,1,ZAPPED(ii,1:55));
+                end
+            end
+			
+        end
+		
+        function ALLSTIM = GetAllStim(obj, Block_idx, chan)
+			DAT = obj.DAT; % Just for convenience.
+			
+			BLOCK = DAT.StimBlocks(Block_idx);
+			STIMS = find((DAT.Stim_ticks >= [BLOCK.Start_tick]) ...
+				& (DAT.Stim_ticks <= [BLOCK.End_tick]));
+			
+			NSAMPS = 1000;
+			ALLSTIM = zeros(length(STIMS), NSAMPS);
+			
+
+			for i=1:length(STIMS)
+				tick = DAT.Stim_ticks(STIMS(i));
+				[VALS, s_idx, e_idx] = obj.DAT.ValsAtTick(tick, NSAMPS, chan);
+
+				if isempty(VALS); continue; end
+				ALLSTIM(i,:) = VALS;
+			end
+			ALLSTIM = ALLSTIM - mean(ALLSTIM(:,1));
+        end
+        
+		function [Start_idx, End_idx]=BlockSampleRange(obj, Block_idx)
+			Start_idx = obj.DAT.StimBlocks(Block_idx).Start_tick / obj.DAT.TicksPerSample;
+			End_idx = obj.DAT.StimBlocks(Block_idx).End_tick / obj.DAT.TicksPerSample;
+		end
+		
+		function PlotBlock(obj, Block_idx, varargin)
+			
+			% How much data, in seconds, to show before and after block.
+			PrePlot_sec = 0;
+			PostPlot_sec = 0;
+			
+			for k=1:2:length(varargin)
+				NAME = varargin{k};
+				if k+1 > length(varargin); fprintf('Value not provided for argument "%s"\n', NAME); break; end
+				VAL = varargin{k+1};
+				switch(varargin{k})
+					case {'PrePlot_sec'}; PrePlot_sec = double(VAL);
+					case {'PostPlot_sec'}; PostPlot_sec = double(VAL);
+					otherwise
+						fprintf('BAD named parameter: %s\n', varargin{k});
+				end
+			end
+			
+			[istart, iend] = obj.BlockSampleRange(Block_idx);
+			istart = max(1, istart-PrePlot_sec*obj.DAT.SampleRate);
+			iend = min(length(obj.DAT.Values), iend+PostPlot_sec*obj.DAT.SampleRate);
+			
+			%plot([obj.DAT.Values(istart:iend) obj.Values_zapped(istart:iend)], '.-');
+			plot([obj.DAT.Values(istart:iend) obj.Values_zapped(istart:iend)]);
+			
+			grid on;
+			zoom on;
+			legend('UnZapped', 'Zapped');
+		end
+		
+		
+	end
+	
+end
+
+
+%%%%OLD
                     
                     
 %                     if (sz(1) >= 20) && (sz(1) ~= 198) % 5a.
@@ -809,415 +1266,3 @@ classdef ZapQuick_class <handle
 %                             end
 %                         end
 %                     end
-                end
-
-                if isempty(app)
-                    waitbar((nns)/li,ffWait,['Subtracting Artifact From: ',Name])
-                else
-                    app.PBarObj.Position(3) = (nns)/li*1000;
-                    app.PBarTxt.String = [num2str(round((nns)/li*100)),'%'];
-                    drawnow
-                end
-                obj.DAT = D;
-                nns = nns +1;
-            end
-            
-            if isempty(app)
-                waitbar((nns)/li,ffWait,['Finished'])
-                close(ffWait)
-            else
-                app.ProgressBar.Title.String = 'Finished';
-                app.PBarObj.Position(3) = (nns)/li*1000;
-                app.PBarTxt.String = [num2str(round((nns)/li*100)),'%'];
-                drawnow
-            end
-            obj.DAT = D;
-        end
-		
-        function [response, noresponse] = BinnedTemplate(obj, idxs, chan, ZAPPEDPlot, ALLSTIM, debugPlots, showFindFlg)
-            D = obj.DAT; % Just for convenience.
-            peakDePol1 = D.StimBlocks(idxs).([chan,'_APTemplate']).peakDePol1;
-            startPt = D.StimBlocks(idxs).([chan,'_APTemplate']).startPt;
-            endPt = D.StimBlocks(idxs).([chan,'_APTemplate']).endPt;
-            ALLSTIMPlot = reshape(ALLSTIM',1,198000);
-
-            trimAPTemp = D.StimBlocks(idxs).([chan,'_APTemplate']).AVG_RAW(peakDePol1-10:peakDePol1+35);
-            trimAPTemp = trimAPTemp - mean(D.StimBlocks(idxs).([chan,'_APTemplate']).AVG_RAW);
-            if ismember({chan},'NerveCon')
-                trimAPTemp = D.StimBlocks(idxs).([chan,'_APTemplate']).AVG_RAW(startPt:endPt);
-                trimAPTemp = trimAPTemp - mean(D.StimBlocks(idxs).([chan,'_APTemplate']).AVG_RAW);
-            end
-            BLOCK = D.StimBlocks(idxs);
-            STIMS = find((D.Stim_ticks >= [BLOCK.Start_tick]) ...
-                & (D.Stim_ticks <= [BLOCK.End_tick]));
-            ticks = D.Stim_ticks(STIMS)./2;
-            ticks = ticks - (ticks(1)-1);
-            sz = 1;
-            if all(D.StimBlocks(idxs).([chan,'_ArtifactTemplate_t'])==0)
-                %if isfield(D.StimBlocks(idxs-1),'AllArtTemps')
-                si = size(D.StimBlocks(idxs-1).([chan,'_ArtifactTemplate_All']));
-                if (si(1)<40) && (si(1) ~= 0) && (D.StimBlocks(idxs).Current_uA ~= 20)
-                    sz = 1;
-                end
-                %end
-
-                if sz
-                    response = [];
-                    noresponse = [];
-                    d = [];
-                    %             sbs = zeros(1,198);
-                    vals = [];
-                    maxls = [];
-                    if ismember({chan},'NerveCon')
-                        [pospks,lposocs,posw,posp] = findpeaks(ZAPPEDPlot,1:length(ZAPPEDPlot),'minpeakheight',max(trimAPTemp)*.5,'minpeakdistance',900);
-
-                        if length(pospks)>180
-                            testFP = 1;
-                            response = ALLSTIM;
-                        else
-                            testFP = 0;
-                        end
-                    else
-                        testFP = 0;
-                    end
-                    if ~testFP
-                        for pos = 1:length(ticks)
-                            noresponseFlag = 0;
-                            responseFlag = 0;
-                            if pos == length(ticks)
-                                bound = round(ticks(pos)):length(ALLSTIMPlot);
-                            else
-                                bound = round(ticks(pos)):(round(ticks(pos+1))-1);
-                            end
-                            if length(bound) == 999
-                                bound = [bound bound(end)+1];
-                            elseif length(bound) > 1000
-                                bound(1) = [];
-                            end
-                            newALLSTIMPlot = ZAPPEDPlot(bound);%ALLSTIMPlot(bound)-D.DAGAN2templ(:,idxs)';% 1.
-                            newALLSTIMPlot = newALLSTIMPlot - mean(newALLSTIMPlot);
-
-                            [maxv,maxl]=max(newALLSTIMPlot(40:end));
-                            maxl = maxl +39;
-
-                            %                 [maxv2,maxl2]=max(newALLSTIMPlot(40:end)-mean(newALLSTIMPlot));
-                            %                 maxl2 = maxl2 +39;
-                            if showFindFlg
-                                figure
-                                if ismember({chan},'NerveCon')
-                                    findsignal(newALLSTIMPlot,trimAPTemp,'Normalization','zscore','NormalizationLength',10);
-                                else
-                                    findsignal(newALLSTIMPlot,trimAPTemp);
-                                end
-
-                                abc = gcf;
-                                abc.Position = [1          41        1920         963];
-                                hold on
-                                plot(maxl,newALLSTIMPlot(maxl),'r*')
-                                hold off
-                            end
-
-                            if ismember({chan},'NerveCon')
-                                [istart,istop,dist] = findsignal(newALLSTIMPlot,trimAPTemp,'Normalization','zscore','NormalizationLength',10);
-                                coLim = 195;
-                            else
-                                coLim = 150;
-                                [istart,istop,dist] = findsignal(newALLSTIMPlot,trimAPTemp);
-                            end
-                            %                 [istart2,istop2,dist2] = findsignal(newALLSTIMPlot-mean(newALLSTIMPlot),trimAPTemp); %2.
-                            d = [d dist];
-                            dist;
-                            val = istart-1;%ticks(pos)-istart
-                            %val2 = istart2-1;
-                            vals = [vals val];
-                            t1 = newALLSTIMPlot;
-                            %                     t2 = newALLSTIMPlot-mean(newALLSTIMPlot);
-                            [t1mv, t1ml] = max(t1(istart:istop));
-                            t1ml = t1ml+istart-1;
-                            %                     [t2mv, t2ml] = max(t2(istart:istop));
-
-                            % 1. If the max peak and the findsignal align
-                            % 2. Check max within findsignal
-                            if (maxl > istart) && (maxl < istop)
-                                if abs(val) > coLim %%%%%%%% used to be 110
-                                    noresponseFlag = 1;
-                                    responseFlag = 0;
-                                else
-                                    if (maxl <= coLim) && (maxv/max(trimAPTemp) < 0.6)  %used to be 130
-                                        %                             if (dist2 < 0.25) && (maxv2/max(trimAPTemp)>0.6) %0.5
-                                        %                                 response = [response; ALLSTIMPlot(bound)-mean(ALLSTIMPlot(bound))]; % 3.
-                                        %                                 sbs(pos) = 1;
-                                        if (maxl <115) && (maxv/max(trimAPTemp) > 0.35) && (maxv/max(trimAPTemp)< 0.6) %&& (dist >0.25)
-                                            noresponseFlag = 0;
-                                            responseFlag = 1;
-                                        else
-                                            noresponseFlag = 1;
-                                            responseFlag = 0;
-                                        end
-                                    elseif maxl > coLim %used to be 130
-                                        noresponseFlag = 1;
-                                        responseFlag = 0;
-                                    else
-                                        noresponseFlag = 0;
-                                        responseFlag = 1;
-                                    end
-                                    %                     if dist > 0.5
-                                    %                         noresponse = [noresponse; ALLSTIMPlot(bound)]; % 4.
-                                    %                     else
-                                    %                         response = [response; ALLSTIMPlot(bound)]; % 3.
-                                    %                     end
-                                end
-                            else
-                                %                     if (dist2 < 0.25) && (maxv2/max(trimAPTemp)>0.6) %0.5
-                                %                                 response = [response; ALLSTIMPlot(bound)-mean(ALLSTIMPlot(bound))]; % 3.
-                                %                                 sbs(pos) = 1;
-
-                                if (t1ml <coLim) && (t1mv/max(trimAPTemp) > 0.6)
-                                    noresponseFlag = 0;
-                                    responseFlag = 1;
-                                elseif (t1ml <115) && (t1mv/max(trimAPTemp) > 0.35) && (t1mv/max(trimAPTemp)< 0.6)
-                                    noresponseFlag = 0;
-                                    responseFlag = 1;
-                                elseif ismember({chan},'NerveCon')
-                                    [~,~,dd]=findsignal(newALLSTIMPlot,trimAPTemp);
-                                    if D.StimBlocks(idxs).Current_uA > 100
-                                        [~,~,dd]=findsignal(newALLSTIMPlot,trimAPTemp(1:100));
-                                        thresh = 1;
-                                    else
-                                        thresh = 0.1;
-                                    end
-
-                                    if dd<thresh
-                                        noresponseFlag = 0;
-                                        responseFlag = 1;
-                                    else
-                                        noresponseFlag = 1;
-                                        responseFlag = 0;
-                                    end
-                                else
-                                    noresponseFlag = 1;
-                                    responseFlag = 0;
-                                end
-
-                                %                     [maxl];
-                                %                     [maxv/max(trimAPTemp)];
-                                %                     [dist];
-                                %                     if (maxl < 130) && (maxv/max(trimAPTemp) < 0.6)
-                                %                         noresponse = [noresponse; ALLSTIMPlot(bound)-mean(ALLSTIMPlot(bound))]; % 4.
-                                %                     elseif maxl > 130
-                                %                         noresponse = [noresponse; ALLSTIMPlot(bound)-mean(ALLSTIMPlot(bound))];
-                                %                     else
-                                %                         response = [response; ALLSTIMPlot(bound)-mean(ALLSTIMPlot(bound))]; % 3.
-                                %                         sbs(pos) = 1;
-                                %                     end
-                            end
-                            if length(bound) ~= 1000
-                                stpppp = 1;
-                            end
-                            if noresponseFlag
-                                noresponse = [noresponse; ALLSTIMPlot(bound)-mean(ALLSTIMPlot(bound))]; % 4.
-                            end
-                            if responseFlag
-                                response = [response; ALLSTIMPlot(bound)-mean(ALLSTIMPlot(bound))]; % 3.
-                                sbs(pos) = 1;
-                            end
-                            if showFindFlg
-                                close(abc)
-                            end
-
-                        end
-                    end
-
-                    if 1
-                        if ~isempty(debugPlots)
-                            sz = size(noresponse);
-                            for i = 1:sz(1)
-                                plot(debugPlots.NoResponsePlot,noresponse(i,:))
-                                hold(debugPlots.NoResponsePlot, 'on')
-                            end
-                            plot(debugPlots.NoResponsePlot,mean(noresponse),'color','k','linewidth',3)
-                            debugPlots.NoResponsePlot.Title.String = ['No Response ',num2str(sz(1))] ;
-                            hold(debugPlots.NoResponsePlot, 'off')
-                            drawnow
-
-                            sz = size(response);
-                            for i = 1:sz(1)
-                                plot(debugPlots.ResponsePlot, response(i,:))
-                                hold(debugPlots.ResponsePlot,'on')
-                            end
-                            plot(debugPlots.ResponsePlot,mean(response),'color','k','linewidth',3)
-                            debugPlots.ResponsePlot.Title.String = ['Response ',num2str(sz(1))];
-                            hold(debugPlots.ResponsePlot,'off')
-                            drawnow
-                        else
-                            b=figure;
-                            sz = size(noresponse);
-                            ba = subplot(1,2,1);
-                            for i = 1:sz(1)
-                                plot(noresponse(i,:))
-                                hold on
-                            end
-                            plot(mean(noresponse),'color','k','linewidth',3)
-                            ba.Title.String = ['No Response ',num2str(sz(1))] ;
-                            hold off
-
-                            sz = size(response);
-                            bb = subplot(1,2,2);
-                            for i = 1:sz(1)
-                                plot(response(i,:))
-                                hold on
-                            end
-                            plot(mean(response),'color','k','linewidth',3)
-                            bb.Title.String = ['Response ',num2str(sz(1))];
-                            hold off
-                            b.Position = [1          41        1920         963];
-                        end
-                        sz = size(noresponse);
-                    end
-                end
-            else
-                if 1
-                    if ~isempty(debugPlots)
-                        b=[];
-                    else
-                        b=figure;
-                    end
-                end
-                response = ALLSTIM;
-                noresponse = [];
-                sz = 0;
-            end
-        end
-		
-        
-        % Zap a block of data. Copy the original data from Values, and put
-		% the zapped data at the same location in Values_zapped. FOR
-		% CONVENIENCE ONLY, return ALLSTIM and ZAPPED, for easy plotting of
-		% the "before" and "after" overlapped stim blocks.
-		function [ALLSTIM, ZAPPED] = ZapBlock(obj, Block_idx, TEMPLATE, chan, Positivepks, cornerpt)
-			DAT = obj.DAT; % Just for convenience.
-			
-			% If TEMPLATE is not provided, then we just "self zap" using this
-			% block to create the zapping template.
-			if nargin < 3
-				TEMPLATE = obj.GetZapTemplate(Block_idx);
-			end
-			
-			BLOCK = DAT.StimBlocks(Block_idx);
-			STIMS = find((DAT.Stim_ticks >= [BLOCK.Start_tick]) ...
-				& (DAT.Stim_ticks <= [BLOCK.End_tick]));
-			
-			NSAMPS = length(TEMPLATE);
-			ALLSTIM = zeros(length(STIMS), NSAMPS);
-			
-            if ~isfield(DAT.StimBlocks(Block_idx),[chan,'_ALLSTIM'])
-                % Subtract the TEMPLATE out of the source obj.Values data at each
-                % stim pulse in this block, and store it in obj.Values_zapped.
-                for i=1:length(STIMS)
-                    %                 figure
-                    %                 bc = gcf;
-                    tick = DAT.Stim_ticks(STIMS(i));
-                    [VALS, s_idx, e_idx] = obj.DAT.ValsAtTick(tick, NSAMPS, chan);
-                    %                 plot(VALS)
-                    %                 hold on
-                    %                 plot(TEMPLATE)
-                    if isempty(VALS); continue; end
-                    %obj.Values_zapped(s_idx:e_idx) = VALS - TEMPLATE(:);
-                    %                 plot(obj.Values_zapped(s_idx:e_idx))
-                    %                 hold off
-                    %                 close(bc)
-                    ALLSTIM(i,:) = VALS;
-                end
-                ALLSTIM = ALLSTIM - mean(ALLSTIM(:,1));
-            else
-                ALLSTIM = DAT.StimBlocks(Block_idx).([chan,'_ALLSTIM']);
-            end
-            if iscolumn(TEMPLATE)
-                TEMPLATE = TEMPLATE';
-            end
-            sz = size(ALLSTIM);
-            ZAPPED = ALLSTIM - TEMPLATE;
-            for ii = 1:sz(1)
-                u = ALLSTIM(ii,:);
-                [aa,ab] = max(u);
-                [a2,ab2]=min(u);
-                sameMin = find(u(1:150)-a2<0.005);
-                sameMax = find(aa-u(1:150)<0.005);
-                
-                if length(sameMin)>4
-                    ZAPPED(ii,sameMin) = ZAPPED(ii,sameMin(1)-1);
-                end
-                if length(sameMax)>4
-                    if (sameMax(1)-1) < 1
-                    else
-                        sameMax = [sameMax(1)-1 sameMax];
-                    end
-                    ZAPPED(ii,sameMax) = ZAPPED(ii,sameMax(end)+1);
-                end
-                if ~any(isnan([ZAPPED(ii,1:55)]))
-                    ZAPPED(ii,1:55) = filtfilt(ones(1,9)/9,1,ZAPPED(ii,1:55));
-                end
-            end
-			
-        end
-		
-        function ALLSTIM = GetAllStim(obj, Block_idx, chan)
-			DAT = obj.DAT; % Just for convenience.
-			
-			BLOCK = DAT.StimBlocks(Block_idx);
-			STIMS = find((DAT.Stim_ticks >= [BLOCK.Start_tick]) ...
-				& (DAT.Stim_ticks <= [BLOCK.End_tick]));
-			
-			NSAMPS = 1000;
-			ALLSTIM = zeros(length(STIMS), NSAMPS);
-			
-
-			for i=1:length(STIMS)
-				tick = DAT.Stim_ticks(STIMS(i));
-				[VALS, s_idx, e_idx] = obj.DAT.ValsAtTick(tick, NSAMPS, chan);
-
-				if isempty(VALS); continue; end
-				ALLSTIM(i,:) = VALS;
-			end
-			ALLSTIM = ALLSTIM - mean(ALLSTIM(:,1));
-        end
-        
-		function [Start_idx, End_idx]=BlockSampleRange(obj, Block_idx)
-			Start_idx = obj.DAT.StimBlocks(Block_idx).Start_tick / obj.DAT.TicksPerSample;
-			End_idx = obj.DAT.StimBlocks(Block_idx).End_tick / obj.DAT.TicksPerSample;
-		end
-		
-		function PlotBlock(obj, Block_idx, varargin)
-			
-			% How much data, in seconds, to show before and after block.
-			PrePlot_sec = 0;
-			PostPlot_sec = 0;
-			
-			for k=1:2:length(varargin)
-				NAME = varargin{k};
-				if k+1 > length(varargin); fprintf('Value not provided for argument "%s"\n', NAME); break; end
-				VAL = varargin{k+1};
-				switch(varargin{k})
-					case {'PrePlot_sec'}; PrePlot_sec = double(VAL);
-					case {'PostPlot_sec'}; PostPlot_sec = double(VAL);
-					otherwise
-						fprintf('BAD named parameter: %s\n', varargin{k});
-				end
-			end
-			
-			[istart, iend] = obj.BlockSampleRange(Block_idx);
-			istart = max(1, istart-PrePlot_sec*obj.DAT.SampleRate);
-			iend = min(length(obj.DAT.Values), iend+PostPlot_sec*obj.DAT.SampleRate);
-			
-			%plot([obj.DAT.Values(istart:iend) obj.Values_zapped(istart:iend)], '.-');
-			plot([obj.DAT.Values(istart:iend) obj.Values_zapped(istart:iend)]);
-			
-			grid on;
-			zoom on;
-			legend('UnZapped', 'Zapped');
-		end
-		
-		
-	end
-	
-end
